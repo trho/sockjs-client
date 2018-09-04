@@ -1,5 +1,5 @@
-/* sockjs-client v1.1.4 | http://sockjs.org | MIT license */
-(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.SockJS = f()}})(function(){var define,module,exports;return (function(){function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s}return e})()({1:[function(require,module,exports){
+/* sockjs-client v1.1.5 | http://sockjs.org | MIT license */
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.SockJS = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -371,7 +371,7 @@ function InfoAjax(url, AjaxObject) {
         info = {};
       }
     }
-    self.emit('finish', info, rtt, status);
+    self.emit('finish', info, rtt);
     self.removeAllListeners();
   });
 }
@@ -561,10 +561,10 @@ InfoReceiver.prototype.doXhr = function(baseUrl, urlInfo) {
     self.emit('finish');
   }, InfoReceiver.timeout);
 
-  this.xo.once('finish', function(info, rtt, status) {
+  this.xo.once('finish', function(info, rtt) {
     debug('finish', info, rtt);
     self._cleanup(true);
-    self.emit('finish', info, rtt, status);
+    self.emit('finish', info, rtt);
   });
 };
 
@@ -779,11 +779,11 @@ SockJS.OPEN = 1;
 SockJS.CLOSING = 2;
 SockJS.CLOSED = 3;
 
-SockJS.prototype._receiveInfo = function(info, rtt, status) {
+SockJS.prototype._receiveInfo = function(info, rtt) {
   debug('_receiveInfo', rtt);
   this._ir = null;
   if (!info) {
-    this._close(1002, 'Cannot connect to server', undefined, status);
+    this._close(1002, 'Cannot connect to server');
     return;
   }
 
@@ -934,7 +934,7 @@ SockJS.prototype._open = function() {
   }
 };
 
-SockJS.prototype._close = function(code, reason, wasClean, status) {
+SockJS.prototype._close = function(code, reason, wasClean) {
   debug('_close', this.transport, code, reason, wasClean, this.readyState);
   var forceFail = false;
 
@@ -962,7 +962,6 @@ SockJS.prototype._close = function(code, reason, wasClean, status) {
     }
 
     var e = new CloseEvent('close');
-    e.status = status;
     e.wasClean = wasClean || false;
     e.code = code || 1000;
     e.reason = reason;
@@ -3730,7 +3729,7 @@ module.exports = {
 }).call(this,{ env: {} })
 
 },{"debug":54,"url-parse":61}],53:[function(require,module,exports){
-module.exports = '1.1.4';
+module.exports = '1.1.5';
 
 },{}],54:[function(require,module,exports){
 (function (process){
@@ -5240,15 +5239,18 @@ function querystring(query) {
     , result = {}
     , part;
 
-  //
-  // Little nifty parsing hack, leverage the fact that RegExp.exec increments
-  // the lastIndex property so we can continue executing this loop until we've
-  // parsed all results.
-  //
-  for (;
-    part = parser.exec(query);
-    result[decode(part[1])] = decode(part[2])
-  );
+  while (part = parser.exec(query)) {
+    var key = decode(part[1])
+      , value = decode(part[2]);
+
+    //
+    // Prevent overriding of existing properties. This ensures that build-in
+    // methods like `toString` or __proto__ are not overriden by malicious
+    // querystrings.
+    //
+    if (key in result) continue;
+    result[key] = value;
+  }
 
   return result;
 }
